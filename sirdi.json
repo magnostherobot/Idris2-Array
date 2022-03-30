@@ -1,0 +1,7 @@
+[{
+    "deps": [ ],
+    "modules": [ "Array" ],
+    "name": "Array",
+    "prebuild" : "make -C src",
+    "preinstall": "make -C src install"
+}]

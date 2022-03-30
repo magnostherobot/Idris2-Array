@@ -1,0 +1,10 @@
+env.sh
+
+.build/
+build/
+depends/
+Array.ipkg
+
+*.idr~
+*.o
+*.so

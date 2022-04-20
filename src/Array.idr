@@ -90,40 +90,30 @@ newArray : HasIO io => (0 t : Type) -> io $ Arr Z t
 newArray t = do arr <- primIO prim__newArray
                 pure $ recallArrType arr
 
-foldl' : ({n : _} -> Vect n t -> t -> Vect (S n) t) ->
-         Vect j t ->
-         Vect k t ->
-         Vect (j + k) t
+arrSizeLemma : {x : _} -> Vect x a -> (y : _) ->  S x + y = x + S y
+arrSizeLemma _ y = plusSuccRightSucc x y
 
-test : Vect n a -> Vect n a
-test xs = foldl' (flip (::)) [] xs
+foldlM : Monad m =>
+         {j : _} ->
+         (func : {n : _} -> Arr n a -> a -> m $ Arr (S n) a) ->
+         (acc : Arr j a) ->
+         Vect k a ->
+         m $ Arr (k + j) a
+foldlM func acc [] = pure acc
+foldlM func acc (x :: xs) = do acc' <- func acc x
+                               rewrite arrSizeLemma xs j
+                               foldlM func acc' xs
 
-toArray'' : HasIO io => Appendable a => Vect n a -> io $ Arr n a
--- toArray'' xs = foldl' ?gweg ?fewg ?gewg
-
--- TODO
-appendMany : HasIO io => Appendable t => {n : _} ->
-             Arr n t -> Vect m t -> io $ Arr (m + n) t
--- appendMany xs [] = pure xs
--- appendMany xs (y :: ys) =
---   do xs' <- append xs y
---      appendMany xs' ys
-
-toArray' : {a : _} -> {n : _} ->
-           Appendable a => HasIO io => (xs : Vect n a) -> io $ Arr n a
-toArray' [] = newArray a
-toArray' (x :: xs) = do xs' <- toArray' xs
-                        append xs' x
-
-||| Converts a Vect to an array.
-|||
-||| @a the type of elements in the array.
-||| @n the number of elements in the Vect.
-||| @xs the Vect to be converted.
 public export
-toArray : {a : _} -> {n : _} ->
-          Appendable a => HasIO io => (xs : Vect n a) -> io $ Arr n a
-toArray xs = toArray' (reverse xs)
+appendMany : HasIO io => Appendable a => {n : _} ->
+             Arr n a -> Vect m a -> io $ Arr (m + n) a
+appendMany as xs = foldlM append as xs
+
+public export
+toArray : HasIO io => Appendable a => {n : _} -> Vect n a -> io $ Arr n a
+toArray xs =
+  rewrite sym $ plusZeroRightNeutral n
+  in appendMany !(newArray a) xs
 
 %foreign (arrayext "print_array")
 prim__printArray : Arr' -> Int -> PrimIO ()
@@ -131,11 +121,3 @@ prim__printArray : Arr' -> Int -> PrimIO ()
 printArray : HasIO io => {n : _} -> Arr n AnyPtr -> io ()
 printArray xs = let xs' = forgetArrType xs
                 in primIO $ prim__printArray xs' (cast n)
-
-main : IO ()
-main = do arr <- newArray AnyPtr
-          x <- malloc 16
-          arr <- append arr x
-          y <- malloc 16
-          arr <- append arr y
-          printArray arr

@@ -3,7 +3,7 @@ env.sh
 .build/
 build/
 depends/
-Array.ipkg
+*.ipkg
 
 *.idr~
 *.o

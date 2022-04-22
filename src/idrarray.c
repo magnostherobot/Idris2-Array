@@ -5,10 +5,25 @@ size_t array_malloc_size(int n) {
     return n * sizeof(void *);
 }
 
+size_t int_array_malloc_size(int n) {
+    return n * sizeof(int);
+}
+
 void **new_array() {
     size_t array_size = array_malloc_size(0);
     void **array = malloc(array_size);
     return array;
+}
+
+int *array_append_int(int *array, int n, int elem) {
+    size_t new_array_size = int_array_malloc_size(n + 1);
+    int *new_array = realloc(array, new_array_size);
+    new_array[n] = elem;
+    return new_array;
+}
+
+int array_index_int(int i, int *array) {
+    return array[i];
 }
 
 void **array_append_anyptr(void **array, int n, void *elem) {
@@ -16,6 +31,10 @@ void **array_append_anyptr(void **array, int n, void *elem) {
     void **new_array = realloc(array, new_array_size);
     new_array[n] = elem;
     return new_array;
+}
+
+void *array_index_anyptr(int i, void **array) {
+    return array[i];
 }
 
 void print_array(void **array, int n) {

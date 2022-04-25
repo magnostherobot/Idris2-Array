@@ -3,8 +3,7 @@ module Data.Array
 import Data.Vect
 import System.FFI
 
-arrayext : String -> String
-arrayext x = "C:" ++ x ++ ",libidrarray"
+import Data.Array.Primitives
 
 ||| Type used to represent C-style arrays.
 |||
@@ -12,44 +11,19 @@ arrayext x = "C:" ++ x ++ ",libidrarray"
 ||| @t type of item contained in the array.
 public export
 data Arr : (n : Nat) -> (t : Type) -> Type where
-  -- no constructors!
-
-||| Type used by FFI wrapper functions to describe arrays.
-||| Does not carry element type/count info as FFI wrappers cannot take implicit
-||| arguments.
-public export
-Arr' : Type
-Arr' = Ptr AnyPtr
-
-||| Erase an array's type info.
-||| Designed to be used internally; made public in case of emergencies.
-public export
-forgetArrType : Arr _ _ -> Arr'
-forgetArrType = believe_me
-
-||| Reintroduce an array's type info.
-||| Designed to be used internally; made public in case of emergencies.
-public export
-recallArrType : Arr' -> Arr _ _
-recallArrType = believe_me
+  MkArr : Arr' -> Arr n t
 
 Cast (Fin n) Int where
   cast = cast . the Nat . cast
 
-%foreign (arrayext "array_append_anyptr")
-prim__arrayAppendAnyPtr : Arr' -> Int -> AnyPtr -> PrimIO Arr'
-
 appendAnyPtr : {n : _} -> HasIO io =>
                Arr n AnyPtr -> AnyPtr -> io $ Arr (S n) AnyPtr
-appendAnyPtr xs x = do let xs' = forgetArrType xs
-                       res' <- primIO $ prim__arrayAppendAnyPtr xs' (cast n) x
-                       pure $ recallArrType res'
-
-%foreign (arrayext "array_index_anyptr")
-prim__arrayIndexAnyPtr : Int -> Arr' -> AnyPtr
+appendAnyPtr (MkArr xs) x = do
+  res' <- primIO $ prim__arrayAppendAnyPtr xs (cast n) x
+  pure $ MkArr res'
 
 indexAnyPtr : Fin n -> Arr n AnyPtr -> AnyPtr
-indexAnyPtr i xs = prim__arrayIndexAnyPtr (cast i) (forgetArrType xs)
+indexAnyPtr i (MkArr xs) = prim__arrayIndexAnyPtr (cast i) xs
 
 ||| Interface used to add support for adding elements of a new type to arrays,
 ||| and indexing into arrays to fetch values from within.
@@ -70,20 +44,14 @@ interface Appendable a where
   ||| @xs the array to index into.
   index : (i : Fin n) -> (xs : Arr n a) -> a
 
-%foreign (arrayext "array_append_int")
-prim__arrayAppendInt : Arr' -> Int -> Int -> PrimIO Arr'
-
 appendInt : {n : _} -> HasIO io =>
             (xs : Arr n Int) -> (x : Int) -> io $ Arr (S n) Int
-appendInt xs x = do let xs' = forgetArrType xs
-                    res' <- primIO $ prim__arrayAppendInt xs' (cast n) x
-                    pure $ recallArrType res'
-
-%foreign (arrayext "array_index_int")
-prim__arrayIndexInt : Int -> Arr' -> Int
+appendInt (MkArr xs) x = do
+  res' <- primIO $ prim__arrayAppendInt xs (cast n) x
+  pure $ MkArr res'
 
 indexInt : Fin n -> Arr n Int -> Int
-indexInt i xs = prim__arrayIndexInt (cast i) (forgetArrType xs)
+indexInt i (MkArr xs) = prim__arrayIndexInt (cast i) xs
 
 public export
 Appendable Int where
@@ -132,16 +100,13 @@ public export
 ErasableToAnyPtr (Struct n ms) where
   erase = structToPtr
 
-%foreign (arrayext "new_array")
-prim__newArray : PrimIO Arr'
-
 ||| Creates a new, empty array.
 |||
 ||| @t the type of elements carried by the new array.
 public export
 newArray : HasIO io => (0 t : Type) -> io $ Arr Z t
 newArray t = do arr <- primIO prim__newArray
-                pure $ recallArrType arr
+                pure $ MkArr arr
 
 arrSizeLemma : {x : _} -> Vect x a -> (y : _) -> S x + y = x + S y
 arrSizeLemma _ y = plusSuccRightSucc x y
@@ -168,9 +133,5 @@ toArray xs =
   rewrite sym $ plusZeroRightNeutral n
   in appendMany !(newArray a) xs
 
-%foreign (arrayext "print_array")
-prim__printArray : Arr' -> Int -> PrimIO ()
-
 printArray : HasIO io => {n : _} -> Arr n AnyPtr -> io ()
-printArray xs = let xs' = forgetArrType xs
-                in primIO $ prim__printArray xs' (cast n)
+printArray (MkArr xs) = primIO $ prim__printArray xs (cast n)

@@ -1,4 +1,4 @@
-module Array
+module Data.Array
 
 import Data.Vect
 import System.FFI

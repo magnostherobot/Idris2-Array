@@ -5,7 +5,7 @@ import Data.Vect
 
 import Test.Unit
 
-import Array
+import Data.Array
 
 dummyPtr : HasIO io => io AnyPtr
 dummyPtr = malloc 0

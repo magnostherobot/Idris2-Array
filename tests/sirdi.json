@@ -12,7 +12,7 @@
         "name": "UnitTest",
         "git": {
             "url": "https://github.com/magnostherobot/Idris2-UnitTest",
-            "commit": "738b983c3979d53c15dbfaff5f21f3ee7dd4c546"
+            "commit": "9297a4c8b19623372046f3d0216c65255f9c4529"
         }
     }]
 }]

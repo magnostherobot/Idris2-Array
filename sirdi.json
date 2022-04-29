@@ -1,5 +1,9 @@
 [{
-    "modules": [ "Data.Array" ],
+    "modules": [
+        "Data.Array",
+        "Data.Array.Primitives",
+        "Data.Array.Types"
+    ],
     "name": "Array",
     "passthru": {
         "prebuild" : "make -C src",

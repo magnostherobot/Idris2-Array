@@ -4,15 +4,8 @@ import Data.Vect
 import System.FFI
 import public Control.Linear.LIO
 
+import public Data.Array.Types
 import Data.Array.Primitives
-
-||| Type used to represent C-style arrays.
-|||
-||| @n number of items in the array.
-||| @t type of item contained in the array.
-public export
-data Arr : (n : Nat) -> (t : Type) -> Type where
-  MkArr : Arr' -> Arr n t
 
 Cast (Fin n) Int where
   cast = cast . the Nat . cast

@@ -1,11 +1,6 @@
 module Data.Array.Primitives
 
-||| Type used by FFI wrapper functions to describe arrays.
-||| Does not carry element type/count info as FFI wrappers cannot take implicit
-||| arguments.
-public export
-Arr' : Type
-Arr' = Ptr AnyPtr
+import Data.Array.Types
 
 arrayext : String -> String
 arrayext x = "C:" ++ x ++ ",libidrarray"

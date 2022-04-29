@@ -2,6 +2,7 @@ module Data.Array
 
 import Data.Vect
 import System.FFI
+import public Control.Linear.LIO
 
 import Data.Array.Primitives
 
@@ -17,7 +18,7 @@ Cast (Fin n) Int where
   cast = cast . the Nat . cast
 
 appendAnyPtr : {n : _} -> HasIO io =>
-               Arr n AnyPtr -> AnyPtr -> io $ Arr (S n) AnyPtr
+               (1 _ : Arr n AnyPtr) -> AnyPtr -> io $ Arr (S n) AnyPtr
 appendAnyPtr (MkArr xs) x = do
   res' <- primIO $ prim__arrayAppendAnyPtr xs (cast n) x
   pure $ MkArr res'
@@ -35,8 +36,8 @@ interface Appendable a where
   ||| @n number of items in the array prior to appending the new element.
   ||| @xs the array to append an element to.
   ||| @x the element to append to the array.
-  append : {n : _} -> HasIO io =>
-           (xs : Arr n a) -> (x : a) -> io $ Arr (S n) a
+  append : {n : _} -> LinearIO io =>
+           (1 xs : Arr n a) -> (x : a) -> L1 io $ Arr (S n) a
 
   ||| Indexes into an array to get a value.
   |||
@@ -44,11 +45,11 @@ interface Appendable a where
   ||| @xs the array to index into.
   index : (i : Fin n) -> (xs : Arr n a) -> a
 
-appendInt : {n : _} -> HasIO io =>
-            (xs : Arr n Int) -> (x : Int) -> io $ Arr (S n) Int
+appendInt : {n : _} -> LinearIO io =>
+            (1 xs : Arr n Int) -> (x : Int) -> L1 io $ Arr (S n) Int
 appendInt (MkArr xs) x = do
   res' <- primIO $ prim__arrayAppendInt xs (cast n) x
-  pure $ MkArr res'
+  pure1 $ MkArr res'
 
 indexInt : Fin n -> Arr n Int -> Int
 indexInt i (MkArr xs) = prim__arrayIndexInt (cast i) xs
@@ -67,19 +68,26 @@ interface ErasableToAnyPtr e where
   ||| @e the type being erased.
   erase : e -> AnyPtr
 
-  eraseArr : Arr n e -> Arr n AnyPtr
-  eraseArr = believe_me
+  eraseArr : (1 _ : Arr n e) -> Arr n AnyPtr
+  eraseArr (MkArr xs) = MkArr xs
 
   unerase : AnyPtr -> e
   unerase = believe_me
 
-  uneraseArr : Arr n AnyPtr -> Arr n e
-  uneraseArr = believe_me
+  uneraseArr : (1 _ : Arr n AnyPtr) -> Arr n e
+  uneraseArr (MkArr xs) = MkArr xs
+
+appendErasableToAnyPtr : ErasableToAnyPtr e => LinearIO io =>
+                         {n : _} -> (1 xs : Arr n e) -> e ->
+                         L1 io $ Arr (S n) e
+appendErasableToAnyPtr xs x = do let xs = eraseArr xs
+                                 xs <- appendAnyPtr xs (erase x)
+                                 let xs = uneraseArr xs
+                                 pure1 xs
 
 public export
 ErasableToAnyPtr e => Appendable e where
-  append xs x = do arr <- appendAnyPtr (eraseArr xs) (erase x)
-                   pure $ uneraseArr arr
+  append xs x = appendErasableToAnyPtr xs x
   index i xs = unerase $ indexAnyPtr i (eraseArr xs)
 
 public export
@@ -101,37 +109,55 @@ ErasableToAnyPtr (Struct n ms) where
   erase = structToPtr
 
 ||| Creates a new, empty array.
-|||
-||| @t the type of elements carried by the new array.
+newArray : LinearIO io => L1 io $ Arr Z t
+newArray = do arr <- primIO prim__newArray
+              pure1 $ MkArr arr
+
 public export
-newArray : HasIO io => (0 t : Type) -> io $ Arr Z t
-newArray t = do arr <- primIO prim__newArray
-                pure $ MkArr arr
+freeArray : HasIO io => (1 a : Arr n t) -> io ()
+freeArray (MkArr x) = primIO $ prim__freeArray x
 
 arrSizeLemma : {x : _} -> Vect x a -> (y : _) -> S x + y = x + S y
 arrSizeLemma _ y = plusSuccRightSucc x y
 
-foldlM : Monad m =>
+foldlM : LinearIO io =>
          {j : _} ->
-         (func : {n : _} -> Arr n a -> a -> m $ Arr (S n) a) ->
-         (acc : Arr j a) ->
+         (func : {n : _} -> (1 _ : Arr n a) -> a ->
+                 L1 io $ Arr (S n) a) ->
+         (1 acc : Arr j a) ->
          Vect k a ->
-         m $ Arr (k + j) a
-foldlM func acc [] = pure acc
+         L1 io $ Arr (k + j) a
+foldlM func acc [] = pure1 acc
 foldlM func acc (x :: xs) = do acc' <- func acc x
                                rewrite arrSizeLemma xs j
                                foldlM func acc' xs
 
 public export
-appendMany : HasIO io => Appendable a => {n : _} ->
-             Arr n a -> Vect m a -> io $ Arr (m + n) a
+appendMany : LinearIO io => Appendable a => {n : _} ->
+             (1 as : Arr n a) -> Vect m a -> L1 io $ Arr (m + n) a
 appendMany as xs = foldlM append as xs
 
 public export
-toArray : HasIO io => Appendable a => {n : _} -> Vect n a -> io $ Arr n a
+toArray : LinearIO io => Appendable a => {n : _} ->
+          Vect n a -> L1 io $ Arr n a
 toArray xs =
   rewrite sym $ plusZeroRightNeutral n
-  in appendMany !(newArray a) xs
+  in appendMany !newArray xs
 
 printArray : HasIO io => {n : _} -> Arr n AnyPtr -> io ()
 printArray (MkArr xs) = primIO $ prim__printArray xs (cast n)
+
+test : IO ()
+test = run $ do
+  a <- newArray {t = Int}
+  a <- append a 10
+  a <- appendMany a [2, 3, 3, 7]
+  freeArray a
+
+  b <- newArray {t = Int}
+  freeArray b
+
+  c <- toArray (the (Vect _ Int) [1, 6, 9])
+  freeArray c
+
+  pure ()

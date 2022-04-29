@@ -45,4 +45,8 @@ void print_array(void **array, int n) {
     }
 }
 
+void free_array(void *array) {
+    free(array);
+}
+
 /* vim: se tw=80 ft=c sw=4 ts=4 et : */

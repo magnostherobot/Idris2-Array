@@ -1,9 +1,12 @@
 [{
     "modules": [ "Data.Array" ],
     "name": "Array",
-    "deps": [ ],
     "passthru": {
         "prebuild" : "make -C src",
         "preinstall": "make -C src install"
-    }
+    },
+    "deps": [{
+        "name": "contrib",
+        "legacy": true
+    }]
 }]

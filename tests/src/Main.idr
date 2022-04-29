@@ -1,6 +1,6 @@
 import Test.Unit
 
-import ArrayTest
+import Data.ArrayTest
 
 main : IO ()
 main = runTests ArrayTest.tests

@@ -2,7 +2,8 @@
     "name": "ArrayTest",
     "modules": [
         "Main",
-        "ArrayTest"
+        "Data.ArrayTest",
+        "Data.Array.PrimitivesTest"
     ],
     "main": "Main",
     "deps": [{
